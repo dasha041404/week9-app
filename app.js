@@ -1,8 +1,9 @@
 import puppeteer from 'puppeteer-core';
 import chromium from 'chromium';
 
-export default function (express, bodyParser, createReadStream, crypto, http) {
+export default function (express, bodyParser) {
     const app = express();
+    
     app.use(bodyParser.urlencoded({ extended: true }));
     app.use(bodyParser.json());
 
@@ -24,11 +25,23 @@ export default function (express, bodyParser, createReadStream, crypto, http) {
         try {
             browser = await puppeteer.launch({
                 executablePath: chromium.path,
-                args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+                args: [
+                    '--no-sandbox', 
+                    '--disable-setuid-sandbox', 
+                    '--disable-dev-shm-usage',
+                    '--disable-gpu',
+                    '--disable-software-rasterizer',
+                    '--disable-extensions',
+                    '--js-flags="--max-old-space-size=128"'
+                ],
+                headless: "new"
             });
+            
             const page = await browser.newPage();
             
-            await page.goto(targetUrl, { waitUntil: 'networkidle0' });
+            await page.setViewport({ width: 800, height: 600 });
+            
+            await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 20000 });
             
             await page.click('#bt');
             
@@ -38,6 +51,7 @@ export default function (express, bodyParser, createReadStream, crypto, http) {
             }, { timeout: 10000 });
             
             const result = await page.$eval('#inp', el => el.value);
+            
             res.send(result);
         } catch (e) {
             res.status(500).send(e.message);
